@@ -2,11 +2,10 @@ extern crate hyper;
 #[macro_use]
 extern crate serde_json;
 
-use hyper::{Body, Response, Server};
-use hyper::Method;
-use hyper::rt::Future;  // Used for map_err
+use hyper::{Body, Method, Response, Server, StatusCode};
+// Used for map_err
+use hyper::rt::Future;
 use hyper::service::service_fn_ok;
-use hyper::StatusCode;
 
 fn main() {
     let addr = ([127, 0, 0, 1], 3000).into();
