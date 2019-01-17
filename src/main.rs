@@ -27,8 +27,6 @@ fn main() {
                     let query_as_map = match _req.uri().query() {
                         Some(it) => {
                             it.split('&')
-                                .collect::<Vec<_>>()
-                                .iter()
                                 .map(|q| q.split('=')
                                     .collect::<Vec<_>>())
                                 .filter(|q| q.len() >= 1)
