@@ -2,6 +2,8 @@ extern crate hyper;
 #[macro_use]
 extern crate serde_json;
 
+use std::collections::HashMap;
+
 use hyper::{Body, Method, Response, Server, StatusCode};
 // Used for map_err
 use hyper::rt::Future;
@@ -19,6 +21,26 @@ fn main() {
                         .header("X-HELLO", "world")
                         .body(Body::from(json!({
                             "message": "Hello, World!"}).to_string()))
+                        .unwrap()
+                },
+                (&Method::GET, "/query_as_json") => {
+                    let query_as_map = match _req.uri().query() {
+                        Some(it) => {
+                            it.split('&')
+                                .collect::<Vec<_>>()
+                                .iter()
+                                .map(|q| q.split('=')
+                                    .collect::<Vec<_>>())
+                                .map(|q| (q[0], q[1]))
+                                .collect::<HashMap<_, _>>()
+                        }
+                        None => { HashMap::new() }
+                    };
+
+                    Response::builder()
+                        .status(StatusCode::OK)
+                        .header("Content-Type", "application/json; charset=utf-8")
+                        .body(Body::from(json!(query_as_map).to_string()))
                         .unwrap()
                 },
                 (_, _) => {
