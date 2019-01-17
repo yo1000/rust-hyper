@@ -31,7 +31,11 @@ fn main() {
                                 .iter()
                                 .map(|q| q.split('=')
                                     .collect::<Vec<_>>())
-                                .map(|q| (q[0], q[1]))
+                                .filter(|q| q.len() >= 1)
+                                .map(|q| match q.len() {
+                                    1 => { (q[0], "") }
+                                    _ => { (q[0], q[1]) }
+                                })
                                 .collect::<HashMap<_, _>>()
                         }
                         None => { HashMap::new() }
