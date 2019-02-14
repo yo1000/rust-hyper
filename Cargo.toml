@@ -6,4 +6,8 @@ edition = "2018"
 
 [dependencies]
 hyper = "0.12.20"
+futures = "0.1.25"
 serde_json = "1.0.35"
+url = "1.7.2"
+pretty_env_logger = "0.3.0"
+uuid = { version = "0.7", features = ["serde", "v4"] }
