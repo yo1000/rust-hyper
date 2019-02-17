@@ -17,11 +17,16 @@ use url::form_urlencoded;
 static INDEX: &[u8] = br#"
 <html>
 <body>
-<form action="post" method="post">
-    Name: <input type="text" name="name"><br>
-    Number: <input type="text" name="number"><br>
-    <input type="submit">
-</form>
+<h1>Hello, World!</h1>
+<h2>Usage</h2>
+<p>
+<h3>GET: <code>/query_as_json</code></h3>
+<pre><code>curl 'localhost:1337/query_as_json?a=XYZ&b=123&b=456&c'</code></pre>
+<h3>POST: <code>/param_as_json</code></h3>
+<pre><code>curl -X POST -d 'a=XYZ&b=123&b=456&c' 'localhost:1337/param_as_json'</code></pre>
+<h3>PUT: <code>/json_as_json</code></h3>
+<pre><code>curl -X PUT -d '{ "a": "XYZ", "b": [ 123, 456 ], "c": null }' 'localhost:1337/json_as_json'</code></pre>
+</p>
 </body>
 </html>
 "#;
@@ -29,8 +34,34 @@ static INDEX: &[u8] = br#"
 // Using service_fn, we can turn this function into a `Service`.
 fn param_example(req: Request<Body>) -> Box<Future<Item=Response<Body>, Error=hyper::Error> + Send> {
     match (req.method(), req.uri().path()) {
-        (&Method::GET, "/") | (&Method::GET, "/post") => {
-            Box::new(future::ok(Response::new(INDEX.into())))
+        (&Method::GET, "/") | (&Method::GET, "/hello") => {
+            Box::new(future::ok(Response::builder()
+                .status(StatusCode::OK)
+                .header("X-HELLO", "world")
+                .body(Body::from(INDEX))
+                .unwrap()))
+        },
+        (&Method::GET, "/query_as_json") => {
+            let query_as_map = match req.uri().query() {
+                Some(it) => {
+                    it.split('&')
+                        .map(|q| q.split('=')
+                            .collect::<Vec<_>>())
+                        .filter(|q| q.len() >= 1)
+                        .map(|q| match q.len() {
+                            1 => { (q[0], "") }
+                            _ => { (q[0], q[1]) }
+                        })
+                        .collect::<HashMap<_, _>>()
+                }
+                None => { HashMap::new() }
+            };
+
+            Box::new(future::ok(Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", "application/json; charset=utf-8")
+                .body(Body::from(json!(query_as_map).to_string()))
+                .unwrap()))
         },
         (&Method::POST, "/param_as_json") => {
             Box::new(req.into_body().concat2().map(|b| {
@@ -69,36 +100,6 @@ fn param_example(req: Request<Body>) -> Box<Future<Item=Response<Body>, Error=hy
                     .body(Body::from(json!(json_as_value).to_string()))
                     .unwrap()
             }))
-        },
-        (&Method::GET, "/hello") => {
-            Box::new(future::ok(Response::builder()
-                .status(StatusCode::OK)
-                .header("X-HELLO", "world")
-                .body(Body::from(json!({
-                    "message": "Hello, World!"}).to_string()))
-                .unwrap()))
-        },
-        (&Method::GET, "/query_as_json") => {
-            let query_as_map = match req.uri().query() {
-                Some(it) => {
-                    it.split('&')
-                        .map(|q| q.split('=')
-                            .collect::<Vec<_>>())
-                        .filter(|q| q.len() >= 1)
-                        .map(|q| match q.len() {
-                            1 => { (q[0], "") }
-                            _ => { (q[0], q[1]) }
-                        })
-                        .collect::<HashMap<_, _>>()
-                }
-                None => { HashMap::new() }
-            };
-
-            Box::new(future::ok(Response::builder()
-                .status(StatusCode::OK)
-                .header("Content-Type", "application/json; charset=utf-8")
-                .body(Body::from(json!(query_as_map).to_string()))
-                .unwrap()))
         },
         _ => {
             Box::new(future::ok(Response::builder()
