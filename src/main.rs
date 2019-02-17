@@ -24,8 +24,6 @@ static INDEX: &[u8] = br#"
 </body>
 </html>
 "#;
-static MISSING: &[u8] = b"Missing field";
-static NOTNUMERIC: &[u8] = b"Number field is not numeric";
 
 // Using service_fn, we can turn this function into a `Service`.
 fn param_example(req: Request<Body>) -> Box<Future<Item=Response<Body>, Error=hyper::Error> + Send> {
@@ -33,55 +31,30 @@ fn param_example(req: Request<Body>) -> Box<Future<Item=Response<Body>, Error=hy
         (&Method::GET, "/") | (&Method::GET, "/post") => {
             Box::new(future::ok(Response::new(INDEX.into())))
         },
-        (&Method::POST, "/post") => {
+        (&Method::POST, "/param_as_json") => {
             Box::new(req.into_body().concat2().map(|b| {
-                // Parse the request body. form_urlencoded::parse
-                // always succeeds, but in general parsing may
-                // fail (for example, an invalid post of json), so
-                // returning early with BadRequest may be
-                // necessary.
-                //
-                // Warning: this is a simplified use case. In
-                // principle names can appear multiple times in a
-                // form, and the values should be rolled up into a
-                // HashMap<String, Vec<String>>. However in this
-                // example the simpler approach is sufficient.
-                let params = form_urlencoded::parse(b.as_ref()).into_owned().collect::<HashMap<String, String>>();
+                let params_as_map = form_urlencoded::parse(b.as_ref())
+                    .into_owned().into_iter()
+                    .fold(
+                        HashMap::<String, Vec<_>>::new(),
+                        |mut acc: HashMap<String, Vec<_>>, pair: (String, String)| {
+                            match acc.get_mut(pair.0.as_str()) {
+                                Some(vec) => {
+                                    vec.push(pair.1);
+                                }
+                                None => {
+                                    acc.insert(pair.0, vec![pair.1]);
+                                }
+                            }
+                            acc
+                        }
+                    );
 
-                // Validate the request parameters, returning
-                // early if an invalid input is detected.
-                let name = if let Some(n) = params.get("name") {
-                    n
-                } else {
-                    return Response::builder()
-                        .status(StatusCode::UNPROCESSABLE_ENTITY)
-                        .body(MISSING.into())
-                        .unwrap();
-                };
-                let number = if let Some(n) = params.get("number") {
-                    if let Ok(v) = n.parse::<f64>() {
-                        v
-                    } else {
-                        return Response::builder()
-                            .status(StatusCode::UNPROCESSABLE_ENTITY)
-                            .body(NOTNUMERIC.into())
-                            .unwrap();
-                    }
-                } else {
-                    return Response::builder()
-                        .status(StatusCode::UNPROCESSABLE_ENTITY)
-                        .body(MISSING.into())
-                        .unwrap();
-                };
-
-                // Render the response. This will often involve
-                // calls to a database or web service, which will
-                // require creating a new stream for the response
-                // body. Since those may fail, other error
-                // responses such as InternalServiceError may be
-                // needed here, too.
-                let body = format!("Hello {}, your number is {}", name, number);
-                Response::new(body.into())
+                Response::builder()
+                    .status(StatusCode::OK)
+                    .header("Content-Type", "application/json; charset=utf-8")
+                    .body(Body::from(json!(params_as_map).to_string()))
+                    .unwrap()
             }))
         },
         (&Method::GET, "/hello") => {
