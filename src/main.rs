@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use futures::{future, Future, Stream};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use hyper::service::service_fn;
+use serde_json::Value;
 use url::form_urlencoded;
 
 static INDEX: &[u8] = br#"
@@ -54,6 +55,18 @@ fn param_example(req: Request<Body>) -> Box<Future<Item=Response<Body>, Error=hy
                     .status(StatusCode::OK)
                     .header("Content-Type", "application/json; charset=utf-8")
                     .body(Body::from(json!(params_as_map).to_string()))
+                    .unwrap()
+            }))
+        },
+        (&Method::PUT, "/json_as_json") => {
+            Box::new(req.into_body().concat2().map(|b| {
+                let json_str = String::from_utf8(b.as_ref().to_vec()).unwrap();
+                let json_as_value: Value = serde_json::from_str(json_str.as_str()).unwrap();
+
+                Response::builder()
+                    .status(StatusCode::OK)
+                    .header("Content-Type", "application/json; charset=utf-8")
+                    .body(Body::from(json!(json_as_value).to_string()))
                     .unwrap()
             }))
         },
