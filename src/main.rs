@@ -23,7 +23,7 @@ static INDEX: &[u8] = br#"
 <h3>GET: <code>/query_as_json</code></h3>
 <pre><code>curl 'localhost:1337/query_as_json?a=XYZ&b=123&b=456&c'</code></pre>
 <h3>POST: <code>/param_as_json</code></h3>
-<pre><code>curl -X POST -d 'a=XYZ&b=123&b=456&c' 'localhost:1337/param_as_json'</code></pre>
+<pre><code>curl -X POST -d 'a=XYZ' -d 'b=123' -d 'b=456' -d 'c' 'localhost:1337/param_as_json'</code></pre>
 <h3>PUT: <code>/json_as_json</code></h3>
 <pre><code>curl -X PUT -d '{ "a": "XYZ", "b": [ 123, 456 ], "c": null }' 'localhost:1337/json_as_json'</code></pre>
 </p>
