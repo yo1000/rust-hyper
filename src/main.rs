@@ -44,18 +44,27 @@ fn param_example(req: Request<Body>) -> Box<Future<Item=Response<Body>, Error=hy
         (&Method::GET, "/query_as_json") => {
             let query_as_map = match req.uri().query() {
                 Some(it) => {
-                    it.split('&')
-                        .map(|q| q.split('=')
-                            .collect::<Vec<_>>())
-                        .filter(|q| q.len() >= 1)
-                        .map(|q| match q.len() {
-                            1 => { (q[0], "") }
-                            _ => { (q[0], q[1]) }
-                        })
-                        .collect::<HashMap<_, _>>()
+                    form_urlencoded::parse(it.as_ref())
+                        .into_owned().into_iter()
+                        .fold(
+                            HashMap::<String, Vec<_>>::new(),
+                            |mut acc: HashMap<String, Vec<_>>, pair: (String, String)| {
+                                match acc.get_mut(pair.0.as_str()) {
+                                    Some(vec) => {
+                                        vec.push(pair.1);
+                                    }
+                                    None => {
+                                        acc.insert(pair.0, vec![pair.1]);
+                                    }
+                                }
+                                acc
+                            }
+                        )
                 }
                 None => { HashMap::new() }
             };
+
+            println!("{:?}", query_as_map);
 
             Box::new(future::ok(Response::builder()
                 .status(StatusCode::OK)
@@ -82,6 +91,8 @@ fn param_example(req: Request<Body>) -> Box<Future<Item=Response<Body>, Error=hy
                         }
                     );
 
+                println!("{:?}", params_as_map);
+
                 Response::builder()
                     .status(StatusCode::OK)
                     .header("Content-Type", "application/json; charset=utf-8")
@@ -93,6 +104,8 @@ fn param_example(req: Request<Body>) -> Box<Future<Item=Response<Body>, Error=hy
             Box::new(req.into_body().concat2().map(|b| {
                 let json_str = String::from_utf8(b.as_ref().to_vec()).unwrap();
                 let json_as_value: Value = serde_json::from_str(json_str.as_str()).unwrap();
+
+                println!("{:?}", json_as_value);
 
                 Response::builder()
                     .status(StatusCode::OK)
